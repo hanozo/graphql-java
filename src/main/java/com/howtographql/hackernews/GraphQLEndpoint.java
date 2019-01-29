@@ -2,34 +2,62 @@ package com.howtographql.hackernews;
 
 import com.coxautodev.graphql.tools.SchemaParser;
 import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
+import com.howtographql.hackernews.beans.User;
+import com.howtographql.hackernews.repositories.LinkRepository;
+import com.howtographql.hackernews.repositories.UserRepository;
+import com.howtographql.hackernews.resolvers.LinkResolver;
+import com.howtographql.hackernews.resolvers.Mutation;
+import com.howtographql.hackernews.resolvers.Query;
+import com.howtographql.hackernews.resolvers.SigninResolver;
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoDatabase;
 import graphql.schema.GraphQLSchema;
+import graphql.servlet.GraphQLContext;
 import graphql.servlet.SimpleGraphQLServlet;
+
+import java.util.Optional;
 
 
 @WebServlet(urlPatterns = "/graphql")
 public class GraphQLEndpoint extends SimpleGraphQLServlet {
 
     private static final LinkRepository linkRepository;
+    private static final UserRepository userRepository;
 
     static {
-        //Change to `new MongoClient("mongodb://<host>:<port>/hackernews")`
-        //if you don't have Mongo running locally on port 27017
-        MongoDatabase mongo = new MongoClient().getDatabase("hackernews");
+        MongoClient mongoClient = new MongoClient( "localhost" , 27017 );
+//        mongoClient.close();
+        MongoDatabase mongo = mongoClient.getDatabase("hackernews");
         linkRepository = new LinkRepository(mongo.getCollection("links"));
+        userRepository = new UserRepository(mongo.getCollection("users"));
     }
 
     public GraphQLEndpoint() {
         super(buildSchema());
     }
 
+    @Override
+    protected GraphQLContext createContext(Optional<HttpServletRequest> request, Optional<HttpServletResponse> response) {
+        User user = request
+                .map(req -> req.getHeader("Authorization"))
+                .filter(id -> !id.isEmpty())
+                .map(id -> id.replace("Bearer ", ""))
+                .map(userRepository::findById)
+                .orElse(null);
+        return new AuthContext(user, request, response);
+    }
 
     private static GraphQLSchema buildSchema() {
         return SchemaParser.newParser()
                 .file("schema.graphqls")
-                .resolvers(new Query(linkRepository), new Mutation(linkRepository))
+                .resolvers(
+                        new Query(linkRepository),
+                        new Mutation(linkRepository, userRepository),
+                        new SigninResolver(),
+                        new LinkResolver(userRepository))
                 .build()
                 .makeExecutableSchema();
     }
