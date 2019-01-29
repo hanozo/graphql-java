@@ -2,6 +2,8 @@ package com.howtographql.hackernews;
 
 import com.coxautodev.graphql.tools.GraphQLRootResolver;
 
+import java.util.UUID;
+
 public class Mutation implements GraphQLRootResolver {
 
     private final LinkRepository linkRepository;
@@ -11,7 +13,7 @@ public class Mutation implements GraphQLRootResolver {
     }
 
     public Link createLink(String url, String description) {
-        Link newLink = new Link(url, description);
+        Link newLink = new Link(UUID.randomUUID().toString(), url, description);
         linkRepository.saveLink(newLink);
         return newLink;
     }

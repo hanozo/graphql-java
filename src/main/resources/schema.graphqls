@@ -4,14 +4,15 @@ schema {
 }
 
 type Query {
-  allLinks: [Link]
+    allLinks: [Link]
 }
 
 type Mutation {
-  createLink(url: String!, description: String!): Link
+    createLink(url: String!, description: String!): Link
 }
 
 type Link {
-  url: String!
-  description: String!
+    id: ID!
+    url: String!
+    description: String!
 }
